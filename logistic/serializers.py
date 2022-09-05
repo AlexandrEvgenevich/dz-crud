@@ -24,7 +24,7 @@ class ProductPositionSerializer(serializers.ModelSerializer):
     # настройте сериализатор для позиции продукта на складе
     class Meta:
         model = StockProduct
-        fields = ['stock', 'product', 'quantity', 'price']
+        fields = ['product', 'quantity', 'price']
 
 
 class StockSerializer(serializers.ModelSerializer):
@@ -36,33 +36,44 @@ class StockSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
 
-        # достаем связанные данные для других таблиц
-
-        stokproducts = StockProduct.objects.all()
-
-        stokprodser = ProductPositionSerializer(stokproducts, many=True)
         positions = validated_data.pop('positions')
 
-        # создаем склад по его параметрам
         stock = super().create(validated_data)
 
-        stprod = super().create(stokprodser)
+        stock_objects = Stock.objects.all()
+        stock_id = [s.id for s in stock_objects if s.address == validated_data['address']]
 
-        # здесь вам надо заполнить связанные таблицы
-        # в нашем случае: таблицу StockProduct
-        # с помощью списка positions
+        for p in positions:
+            StockProduct.objects.create(
+                stock=Stock.objects.get(id=int(stock_id[0])),
+                product=p['product'],
+                quantity=p['quantity'],
+                price=p['price'])
 
         return stock
 
     def update(self, instance, validated_data):
         # достаем связанные данные для других таблиц
+
+        stpro_filt = StockProduct.objects.filter(stock=instance.id)
         positions = validated_data.pop('positions')
 
         # обновляем склад по его параметрам
         stock = super().update(instance, validated_data)
+
+        for s in stpro_filt:
+            for p in positions:
+                is_product = 0
+                if s.product == p['product']:
+                    s.price = p['price']
+                    s.quantity = p['quantity']
+                    s.save()
 
         # здесь вам надо обновить связанные таблицы
         # в нашем случае: таблицу StockProduct
         # с помощью списка positions
 
         return stock
+
+    def destroy(self, validated_data):
+        return super().destroy(validated_data)
