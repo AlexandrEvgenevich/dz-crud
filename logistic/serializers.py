@@ -61,13 +61,37 @@ class StockSerializer(serializers.ModelSerializer):
         # обновляем склад по его параметрам
         stock = super().update(instance, validated_data)
 
+        stpro_list = []
+
         for s in stpro_filt:
-            for p in positions:
-                is_product = 0
-                if s.product == p['product']:
-                    s.price = p['price']
-                    s.quantity = p['quantity']
-                    s.save()
+            stpro_list.append(s.product)
+
+        for list_pos in positions:
+            if list_pos['product'] in stpro_list:
+                for stpro in stpro_filt:
+                    for p in positions:
+                        if stpro.product == p['product']:
+                            stpro.price = p['price']
+                            stpro.quantity = p['quantity']
+                            stpro.save()
+            else:
+                for p in positions:
+                    if p['product'] not in stpro_list:
+                        StockProduct.objects.create(
+                            stock=stpro_filt[0].stock,
+                            product=p['product'],
+                            quantity=p['quantity'],
+                            price=p['price'])
+
+
+        # for s in stpro_filt:
+        #     for p in positions:
+        #         if s.product == p['product']:
+        #             s.price = p['price']
+        #             s.quantity = p['quantity']
+        #             s.save()
+        #             is_product = True
+
 
         # здесь вам надо обновить связанные таблицы
         # в нашем случае: таблицу StockProduct
